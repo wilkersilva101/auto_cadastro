@@ -203,11 +203,15 @@ def main():
             if preencher_formulario(browser, servidor):
                 sucessos += 1
                 print(f"Registro {index + 1} processado com sucesso!")
+                sleep(6)  # Aguardar 6 segundos antes de processar o próximo registro
             else:
                 falhas += 1
                 print(f"Falha ao processar registro {index + 1}")
-                # Tentar navegar para novo formulário após falha
-                navegar_para_formulario(browser)
+
+            # Voltar para o link "147" para preencher o formulário novamente
+            if not navegar_para_formulario(browser):
+                print("Falha ao voltar para o formulário!")
+                break
 
         print(f"\nProcessamento concluído!")
         print(f"Sucessos: {sucessos}")
