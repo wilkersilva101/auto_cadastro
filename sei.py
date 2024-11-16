@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 # Configurar o Pandas para exibir todas as colunas
 pd.set_option('display.max_columns', None)
@@ -90,12 +90,12 @@ def preencher_formulario(browser, dados_servidor):
 
         # Selecionar Unidade Global usando diferentes métodos
         try:
-            select_unidade = Select(browser.find_element(By.NAME, "Unidade"))
-            select_unidade.select_by_visible_text("*- Unidade Global")
+            select_unidade = Select(browser.find_element(By.NAME, "participant[unity]"))
+            select_unidade.select_by_visible_text("* - Unidade Global")
         except:
             try:
-                select_unidade = Select(browser.find_element(By.CSS_SELECTOR, "select[name='Unidade']"))
-                select_unidade.select_by_visible_text("*- Unidade Global")
+                select_unidade = Select(browser.find_element(By.CSS_SELECTOR, "select[name='participant[unity]']"))
+                select_unidade.select_by_visible_text("* - Unidade Global")
             except Exception as e:
                 print(f"Erro ao selecionar unidade: {str(e)}")
 
@@ -103,12 +103,12 @@ def preencher_formulario(browser, dados_servidor):
 
         # Mapeamento dos campos com múltiplos seletores
         campos = {
-            "E-mail": ["1", "email", "input[type='email']"],
-            "Telefone": ["2", "telefone", "input[type='tel']"],
-            "Matrícula": ["3", "matricula", "input[type='number']"],
-            "Cargo": ["4", "cargo", "input[type='text']"],
-            "Função": ["5", "funcao", "input[type='text']"],
-            "Lotação": ["6", "lotacao", "input[type='text']"]
+            "E-mail": ["participant_replies_attributes_0_description"],
+            "Telefone": ["participant_replies_attributes_1_description"],
+            "Matrícula": ["participant_replies_attributes_2_description"],
+            "Cargo": ["participant_replies_attributes_3_description"],
+            "Função": ["participant_replies_attributes_4_description"],
+            "Lotação": ["participant_replies_attributes_5_description"]
         }
 
         # Tentar preencher cada campo usando diferentes métodos
@@ -127,14 +127,14 @@ def preencher_formulario(browser, dados_servidor):
                     except:
                         try:
                             # Tentar por CSS
-                            elemento = browser.find_element(By.CSS_SELECTOR, seletor)
+                            elemento = browser.find_element(By.CSS_SELECTOR, f"input[id='{seletor}']")
                         except:
                             continue
 
                 if elemento:
                     elemento.clear()
                     elemento.send_keys(valor)
-                    sleep(0.5)
+                    sleep(1)  # Aumentar o tempo de espera para garantir que o campo seja preenchido corretamente
                     break
 
         # Tentar diferentes métodos para encontrar o botão Finalizar
@@ -156,6 +156,17 @@ def preencher_formulario(browser, dados_servidor):
             sleep(1)
             botao.click()
             sleep(3)
+
+            # Verificar se há mensagem de erro
+            try:
+                erro = browser.find_element(By.CLASS_NAME, "alert-danger")
+                if erro.is_displayed():
+                    print("Erro de validação encontrado!")
+                    print(erro.text)
+                    return False
+            except:
+                pass
+
             return True
 
     except Exception as e:
