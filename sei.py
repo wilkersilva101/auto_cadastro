@@ -6,113 +6,165 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 # Configurar o Pandas para exibir todas as colunas
 pd.set_option('display.max_columns', None)
 
 
 def inicializar_navegador():
-    browser = webdriver.Chrome()
+    # Configurações do Chrome para melhor estabilidade
+    options = webdriver.ChromeOptions()
+    options.add_argument('--start-maximized')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+
+    browser = webdriver.Chrome(options=options)
     return browser
 
 
+def esperar_elemento(browser, by, valor, tempo=10):
+    try:
+        elemento = WebDriverWait(browser, tempo).until(
+            EC.presence_of_element_located((by, valor))
+        )
+        return elemento
+    except TimeoutException:
+        print(f"Timeout esperando por elemento: {valor}")
+        return None
+
+
 def fazer_login(browser):
-    # Acessar o sistema
-    browser.get('https://www.tjpi.jus.br/pesquisas')
+    try:
+        browser.get('https://www.tjpi.jus.br/pesquisas')
+        sleep(3)  # Espera inicial para carregamento completo
 
-    # Esperar até que o campo de usuário esteja presente
-    WebDriverWait(browser, 10).until(
-        EC.presence_of_element_located((By.NAME, "user[username]"))
-    )
+        username = esperar_elemento(browser, By.NAME, "user[username]")
+        if username:
+            username.send_keys("wilker.silva")
 
-    # Preencher login
-    elem = browser.find_element(By.NAME, "user[username]")
-    elem.send_keys("wilker.silva")
-    elem = browser.find_element(By.NAME, "user[password]")
-    elem.send_keys("EAgames2019")
-    elem.send_keys(Keys.RETURN)
+        password = browser.find_element(By.NAME, "user[password]")
+        password.send_keys("EAgames2019")
+        password.send_keys(Keys.RETURN)
+
+        sleep(2)  # Espera após login
+        return True
+    except Exception as e:
+        print(f"Erro no login: {str(e)}")
+        return False
 
 
 def navegar_para_formulario(browser):
-    # Navegar pelos links necessários
-    WebDriverWait(browser, 10).until(
-        EC.presence_of_element_located((By.LINK_TEXT, "147"))
-    )
-    browser.find_element(By.LINK_TEXT, "147").click()
+    try:
+        # Espera mais longa para o carregamento inicial
+        sleep(5)
 
-    WebDriverWait(browser, 10).until(
-        EC.presence_of_element_located((By.LINK_TEXT, "Admin"))
-    )
-    browser.find_element(By.LINK_TEXT, "Admin").click()
+        link_147 = esperar_elemento(browser, By.LINK_TEXT, "147")
+        if link_147:
+            link_147.click()
+            sleep(2)
 
-    WebDriverWait(browser, 10).until(
-        EC.presence_of_element_located((By.LINK_TEXT, "Responder novamente"))
-    )
-    browser.find_element(By.LINK_TEXT, "Responder novamente").click()
+        link_admin = esperar_elemento(browser, By.LINK_TEXT, "Admin")
+        if link_admin:
+            link_admin.click()
+            sleep(2)
+
+        link_responder = esperar_elemento(browser, By.LINK_TEXT, "Responder novamente")
+        if link_responder:
+            link_responder.click()
+            sleep(2)
+
+        return True
+    except Exception as e:
+        print(f"Erro na navegação: {str(e)}")
+        return False
 
 
 def preencher_formulario(browser, dados_servidor):
     try:
-        # Esperar pelo select de unidade
-        WebDriverWait(browser, 10).until(
-            EC.presence_of_element_located((By.NAME, "Unidade"))
-        )
+        print("Iniciando preenchimento do formulário...")
 
-        # Selecionar Unidade Global
-        select_unidade = Select(browser.find_element(By.NAME, "Unidade"))
-        select_unidade.select_by_visible_text("*- Unidade Global")
+        # Espera mais longa para o formulário carregar
+        sleep(5)
 
-        # Preencher os campos
-        campos = {
-            "E-mail": (By.ID, "1"),
-            "Telefone": (By.ID, "2"),
-            "Matrícula": (By.ID, "3"),
-            "Cargo": (By.ID, "4"),
-            "Função": (By.ID, "5"),
-            "Lotação": (By.ID, "6")
-        }
-
-        for campo, (by, selector) in campos.items():
-            elemento = WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located((by, selector))
-            )
-            elemento.clear()
-            elemento.send_keys(str(dados_servidor[campo]))
-            sleep(0.5)
-
-        # Clicar no botão Finalizar Respostas
-        # Tentando diferentes seletores para garantir que encontremos o botão
+        # Selecionar Unidade Global usando diferentes métodos
         try:
-            # Primeira tentativa: por texto
-            botao = WebDriverWait(browser, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Finalizar Respostas')]"))
-            )
+            select_unidade = Select(browser.find_element(By.NAME, "Unidade"))
+            select_unidade.select_by_visible_text("*- Unidade Global")
         except:
             try:
-                # Segunda tentativa: por classe
-                botao = browser.find_element(By.CLASS_NAME, "btn-success")
-            except:
-                # Terceira tentativa: por XPath mais específico
-                botao = browser.find_element(By.XPATH,
-                                             "//button[@class='btn btn-success' or contains(@class, 'finalizar')]")
+                select_unidade = Select(browser.find_element(By.CSS_SELECTOR, "select[name='Unidade']"))
+                select_unidade.select_by_visible_text("*- Unidade Global")
+            except Exception as e:
+                print(f"Erro ao selecionar unidade: {str(e)}")
 
-        # Rolar até o botão para garantir que está visível
-        browser.execute_script("arguments[0].scrollIntoView(true);", botao)
-        sleep(1)  # Pequena pausa para garantir que a página terminou de rolar
+        sleep(1)
 
-        # Clicar no botão
-        botao.click()
+        # Mapeamento dos campos com múltiplos seletores
+        campos = {
+            "E-mail": ["1", "email", "input[type='email']"],
+            "Telefone": ["2", "telefone", "input[type='tel']"],
+            "Matrícula": ["3", "matricula", "input[type='number']"],
+            "Cargo": ["4", "cargo", "input[type='text']"],
+            "Função": ["5", "funcao", "input[type='text']"],
+            "Lotação": ["6", "lotacao", "input[type='text']"]
+        }
 
-        # Esperar um pouco para o próximo registro
+        # Tentar preencher cada campo usando diferentes métodos
+        for campo, seletores in campos.items():
+            valor = str(dados_servidor[campo])
+            print(f"Preenchendo {campo}: {valor}")
+
+            for seletor in seletores:
+                try:
+                    # Tentar por ID
+                    elemento = browser.find_element(By.ID, seletor)
+                except:
+                    try:
+                        # Tentar por nome
+                        elemento = browser.find_element(By.NAME, seletor)
+                    except:
+                        try:
+                            # Tentar por CSS
+                            elemento = browser.find_element(By.CSS_SELECTOR, seletor)
+                        except:
+                            continue
+
+                if elemento:
+                    elemento.clear()
+                    elemento.send_keys(valor)
+                    sleep(0.5)
+                    break
+
+        # Tentar diferentes métodos para encontrar o botão Finalizar
         sleep(2)
-        return True
+        try:
+            botao = browser.find_element(By.CLASS_NAME, "btn-success")
+        except:
+            try:
+                botao = browser.find_element(By.XPATH, "//button[contains(text(), 'Finalizar')]")
+            except:
+                try:
+                    botao = browser.find_element(By.CSS_SELECTOR, "button.btn-success")
+                except Exception as e:
+                    print(f"Erro ao encontrar botão Finalizar: {str(e)}")
+                    return False
+
+        if botao:
+            browser.execute_script("arguments[0].scrollIntoView(true);", botao)
+            sleep(1)
+            botao.click()
+            sleep(3)
+            return True
 
     except Exception as e:
-        print(f"Erro ao preencher formulário: {str(e)}")
+        print(f"Erro detalhado ao preencher formulário: {str(e)}")
         return False
 
 
 def main():
+    browser = None
     try:
         # Importar dados
         df = pd.read_csv("importar.csv", sep=",")
@@ -123,8 +175,13 @@ def main():
         browser = inicializar_navegador()
 
         # Login e navegação inicial
-        fazer_login(browser)
-        navegar_para_formulario(browser)
+        if not fazer_login(browser):
+            print("Falha no login!")
+            return
+
+        if not navegar_para_formulario(browser):
+            print("Falha na navegação!")
+            return
 
         # Processar cada servidor
         sucessos = 0
@@ -138,6 +195,8 @@ def main():
             else:
                 falhas += 1
                 print(f"Falha ao processar registro {index + 1}")
+                # Tentar navegar para novo formulário após falha
+                navegar_para_formulario(browser)
 
         print(f"\nProcessamento concluído!")
         print(f"Sucessos: {sucessos}")
@@ -147,9 +206,9 @@ def main():
         print(f"Erro durante a execução: {str(e)}")
 
     finally:
-        # Aguardar um pouco antes de fechar
-        sleep(5)
-        browser.quit()
+        if browser:
+            sleep(5)
+            browser.quit()
 
 
 if __name__ == "__main__":
