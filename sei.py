@@ -70,7 +70,8 @@ def navegar_para_formulario(browser):
             link_admin.click()
             sleep(2)
 
-        link_responder = esperar_elemento(browser, By.LINK_TEXT, "Responder novamente")
+        # Corrigido o erro de sintaxe
+        link_responder = esperar_elemento(browser, By.LINK_TEXT, "Responder Questionário") or esperar_elemento(browser, By.LINK_TEXT, "Responder novamente")
         if link_responder:
             link_responder.click()
             sleep(2)
